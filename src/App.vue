@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { watchDebounced } from "@vueuse/core";
 
 enum GameState {
   FOR_SALE = "FOR_SALE",
@@ -22,8 +23,7 @@ interface Games {
   wishlist: boolean;
 }
 
-const games = ref<Games[] | null>(null);
-games.value = [
+const games = ref<Games[] | null>([
   {
     id: "1",
     title: "League of Legends",
@@ -66,7 +66,7 @@ games.value = [
     state: GameState.FOR_SALE,
     wishlist: false,
   },
-];
+]);
 
 const addToWishlist = (id: string) => {
   if (games.value) {
@@ -93,17 +93,18 @@ const buy = (id: string) => {
   }
 };
 
-let searchInput = ref("");
+let searchInputText = ref("");
 
-const filteredGames = () => {
-  if (games.value) {
-    return games.value.filter((game) =>
-      game.title.toLowerCase().includes(searchInput.value.toLowerCase())
-    );
-  }
+const filteredGames = ref<Games[] | undefined | null>(games.value);
+const filterGames = () => {
+  filteredGames.value = games.value?.filter((game) => {
+    return game.title
+      .toLowerCase()
+      .includes(searchInputText.value.toLowerCase());
+  });
 };
 
-console.log(filteredGames);
+watchDebounced(searchInputText, filterGames, { debounce: 500, maxWait: 1000 });
 </script>
 
 <template>
@@ -111,105 +112,56 @@ console.log(filteredGames);
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
   />
-  <div className="h-full bg-slate-800 flex flex-col items-center py-10 gap-10">
-    <input
-      v-model="searchInput"
-      type="text"
-      placeholder="Search"
-      class="input input-bordered w-full max-w-xs"
-    />
-    <div
-      v-if="searchInput && filteredGames()?.length === 0"
-      class="h-screen flex text-lg justify-center"
-    >
-      No game found
-    </div>
-    <div
-      class="item game"
-      v-if="searchInput"
-      v-for="game in filteredGames()"
-      :key="game.id"
-      className="h-screen"
-    >
-      <div class="card w-96 bg-base-100 shadow-xl">
-        <div class="card-body gap-5">
-          <div className="flex justify-between">
-            <h2 class="card-title">{{ game.title }}</h2>
-            <span>{{ game.price ? `$${game.price}` : "Free to play" }}</span>
-          </div>
-          <span>Genre: {{ game.genre }}</span>
-          <span
-            >Release date:
-            {{ game.releaseDate.toISOString().split("T")[0] }}</span
-          >
-          <div class="card-actions justify-start gap-10 mt-5">
-            <button
-              v-if="game.state === GameState.FOR_SALE"
-              class="btn btn-primary"
-              @click="buy(game.id)"
-            >
-              Buy Now
-            </button>
-            <button
-              v-else-if="game.state === GameState.READY_TO_PLAY"
-              class="btn btn-primary"
-            >
-              Play
-            </button>
-            <button
-              @click="addToWishlist(game.id)"
-              v-if="!game.wishlist && game.state === GameState.FOR_SALE"
-              class="btn btn-secondary text-xs"
-            >
-              + Wishlist
-            </button>
-            <span
-              v-else-if="game.wishlist && game.state === GameState.FOR_SALE"
-              className="self-center text-xs"
-            >
-              Added to wishlist
-            </span>
-          </div>
-        </div>
+  <div className="min-h-screen bg-slate-800">
+    <!-- <div>hola</div> -->
+    <div className="flex flex-col items-center py-10 gap-10">
+      <input
+        v-model="searchInputText"
+        type="text"
+        placeholder="Search"
+        class="input input-bordered w-full max-w-xs"
+      />
+      <div
+        v-if="searchInputText && filteredGames?.length === 0"
+        class="h-screen flex text-lg justify-center"
+      >
+        No game found
       </div>
-    </div>
-
-    <ul v-if="games && !searchInput" className="flex flex-col gap-10">
-      <li v-for="item in games" :key="item.id">
+      <div class="item game" v-for="game in filteredGames" :key="game.id">
         <div class="card w-96 bg-base-100 shadow-xl">
           <div class="card-body gap-5">
             <div className="flex justify-between">
-              <h2 class="card-title">{{ item.title }}</h2>
-              <span>{{ item.price ? `$${item.price}` : "Free to play" }}</span>
+              <h2 class="card-title">{{ game.title }}</h2>
+              <span>{{ game.price ? `$${game.price}` : "Free to play" }}</span>
             </div>
-            <span>Genre: {{ item.genre }}</span>
+            <span>Genre: {{ game.genre }}</span>
             <span
               >Release date:
-              {{ item.releaseDate.toISOString().split("T")[0] }}</span
+              {{ game.releaseDate.toISOString().split("T")[0] }}</span
             >
             <div class="card-actions justify-start gap-10 mt-5">
               <button
-                v-if="item.state === GameState.FOR_SALE"
+                v-if="game.state === GameState.FOR_SALE"
                 class="btn btn-primary"
-                @click="buy(item.id)"
+                @click="buy(game.id)"
               >
                 Buy Now
               </button>
               <button
-                v-else-if="item.state === GameState.READY_TO_PLAY"
+                v-else-if="game.state === GameState.READY_TO_PLAY"
                 class="btn btn-primary"
               >
                 Play
               </button>
               <button
-                @click="addToWishlist(item.id)"
-                v-if="!item.wishlist && item.state === GameState.FOR_SALE"
+                @click="addToWishlist(game.id)"
+                v-if="!game.wishlist && game.state === GameState.FOR_SALE"
                 class="btn btn-secondary text-xs"
               >
                 + Wishlist
               </button>
               <span
-                v-else-if="item.wishlist && item.state === GameState.FOR_SALE"
+                v-else-if="game.wishlist && game.state === GameState.FOR_SALE"
                 className="self-center text-xs"
               >
                 Added to wishlist
@@ -217,8 +169,8 @@ console.log(filteredGames);
             </div>
           </div>
         </div>
-      </li>
-    </ul>
+      </div>
+    </div>
   </div>
 </template>
 
