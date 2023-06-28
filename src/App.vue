@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { watchDebounced } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
+import { compareAsc } from "date-fns";
 
 enum GameState {
   FOR_SALE = "FOR_SALE",
@@ -94,13 +95,11 @@ const buy = (id: string) => {
   }
 };
 
-let searchInputText = ref("");
-let titleInput = ref("");
-let genreInput = ref("");
-let releaseDateInput = ref("");
-let priceInput = ref("");
-
-console.log(releaseDateInput);
+const searchInputText = ref("");
+const titleInput = ref("");
+const genreInput = ref("");
+const releaseDateInput = ref("");
+const priceInput = ref("");
 
 const filteredGames = ref<Games[] | undefined | null>(games.value);
 const filterGames = () => {
@@ -111,13 +110,16 @@ const filterGames = () => {
   });
 };
 
-watchDebounced(searchInputText, filterGames, { debounce: 500, maxWait: 1000 });
+watchDebounced([searchInputText, games], filterGames, {
+  debounce: 500,
+  maxWait: 1000,
+});
 
 const add = (game: Games) => {
   try {
-    if (game && filteredGames.value) {
-      filteredGames.value = [
-        ...filteredGames.value,
+    if (game && games.value) {
+      games.value = [
+        ...games.value,
         {
           id: game.id,
           title: game.title,
@@ -141,10 +143,18 @@ const add = (game: Games) => {
 };
 
 const remove = (id: string) => {
-  if (filteredGames.value) {
-    filteredGames.value = filteredGames.value.filter((game) => {
+  if (games.value) {
+    games.value = games.value.filter((game) => {
       return game.id !== id;
     });
+  }
+};
+
+const sortDates = () => {
+  if (filteredGames.value) {
+    filteredGames.value.sort((a, b) =>
+      compareAsc(a.releaseDate, b.releaseDate)
+    );
   }
 };
 </script>
@@ -226,6 +236,9 @@ const remove = (id: string) => {
         >
           No game found
         </div>
+        <button class="btn btn-outline btn-xs" @click="sortDates()">
+          Sort by date
+        </button>
         <div class="item game" v-for="game in filteredGames" :key="game.id">
           <div class="card w-96 bg-base-100 shadow-xl">
             <div class="card-body gap-5">
